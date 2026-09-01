@@ -3,10 +3,10 @@
 A fast, native statusline for [Claude Code](https://claude.com/claude-code), written in Rust. Powerlevel10k-rainbow-style single line: current directory, git branch/status, model, thinking effort, context usage, and 5-hour rate limit — all rendered by one small binary in well under 100ms per render, no bash/jq fork chain.
 
 ```
- folder-name   main ✔ | Opus-1M ·  xhigh | ctx ◼◼◻◻◻ 42% | 5h ◼◻◻◻◻ 12%
+folder-name  main ✔ | Opus-1M · xhigh | ctx ◼◼◻◻◻ 42% | 5h ◼◻◻◻◻ 12%
 ```
 
-(These are Nerd Font icons — folder, branch, checkmark, bolt — and need a Nerd Font installed in your viewer/terminal to render as glyphs instead of boxes. The install script installs one for you.)
+(The real statusline also has folder/branch/bolt Nerd Font icons in front of each segment — omitted here since GitHub's markdown renderer doesn't have a Nerd Font either, so they'd just show as boxes. In an actual terminal with a Nerd Font installed — which the install script sets up for you — they render correctly.)
 
 ## Install
 
