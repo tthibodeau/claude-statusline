@@ -9,13 +9,13 @@ A fast, native statusline for [Claude Code](https://claude.com/claude-code), wri
 **Windows** (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/windows/install.ps1 | iex
+irm https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/install.ps1 | iex
 ```
 
 **macOS / Linux / WSL** (bash):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/macos-linux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/install.sh | bash
 ```
 
 Both installers build the binary from source on the machine they run on — nothing prebuilt is committed to this repo. Restart Claude Code after installing.
@@ -34,13 +34,11 @@ Both installers build the binary from source on the machine they run on — noth
 ## Repo layout
 
 ```
-rust-src/            shared Rust source, built by both installers
+install.ps1           Windows
+install.sh             macOS / Linux / WSL
+rust-src/             shared Rust source, built by both installers
   Cargo.toml
   src/main.rs
-windows/
-  install.ps1
-macos-linux/
-  install.sh          also covers Linux and WSL
 ```
 
 ## Requirements

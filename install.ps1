@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Fetch and run:
-      irm https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/windows/install.ps1 | iex
+      irm https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/install.ps1 | iex
 
     Steps, in order:
 
@@ -36,7 +36,7 @@
 .NOTES
     Run once on any new machine. Restart Claude Code after running.
 
-    macOS/Linux use macos-linux/install.sh instead, which builds the same
+    macOS/Linux use install.sh instead, which builds the same
     Rust source from the same shared rust-src/ directory.
 #>
 

@@ -5,7 +5,7 @@
 # bash/jq statusline fallback.
 #
 # Fetch and run:
-#   curl -fsSL https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/macos-linux/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/tthibodeau/claude-statusline/main/install.sh | bash
 #
 # - Installs a Rust toolchain via rustup if cargo is missing.
 # - Downloads the statusline's Cargo.toml + src/main.rs from this repo and
@@ -19,7 +19,7 @@
 #   setting is preserved.
 # - Warns when no Nerd Font is installed.
 #
-# Windows uses windows/install.ps1 instead — see that file.
+# Windows uses install.ps1 instead — see that file.
 #
 # Run once on any new machine. Restart Claude Code after running.
 
