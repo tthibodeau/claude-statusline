@@ -1,0 +1,18 @@
+[package]
+name = "claude-statusline"
+version = "0.1.0"
+edition = "2021"
+description = "Fast Claude Code statusline for Windows (drop-in replacement for statusline.sh)"
+
+[dependencies]
+serde_json = { version = "1", default-features = false, features = ["std"] }
+git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2"] }
+
+# Optimize aggressively for a small, fast-startup binary. This is a one-shot
+# process invoked per render — we want minimum cold-start, not throughput.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
