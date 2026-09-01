@@ -3,7 +3,7 @@
 A fast, native statusline for [Claude Code](https://claude.com/claude-code), written in Rust. Powerlevel10k-rainbow-style single line: current directory, git branch/status, model, thinking effort, context usage, and 5-hour rate limit — all rendered by one small binary in well under 100ms per render, no bash/jq fork chain.
 
 ```
-📁 folder-name  🌿 main ✅ | Opus-1M · ⚡ xhigh | ctx ◼◼◻◻◻ 42% | 5h ◼◻◻◻◻ 12%
+📁 folder-name  🔀 main ✅ | Opus-1M · ⚡ xhigh | ctx ◼◼◻◻◻ 42% | 5h ◼◻◻◻◻ 12%
 ```
 
 (The actual statusline uses Nerd Font icons, not emoji — this is just a readable stand-in for anyone viewing this README without one installed.)
