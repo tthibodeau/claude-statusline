@@ -1,0 +1,11 @@
+{
+  "name": "claude-statusline",
+  "owner": { "name": "780Farva" },
+  "plugins": [
+    {
+      "name": "session-footer",
+      "source": "./mods/session-footer",
+      "description": "Statusline-style footer (folder, git, model, effort, context, 5h usage) drawn in the prompt hint row."
+    }
+  ]
+}

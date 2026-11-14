@@ -4,6 +4,14 @@ A Claude Code **mod** (not a `statusLine` command) that draws the same info as t
 
 It is a port of `rust-src/` using the mod API: git state comes from `git status --porcelain=v2` via `$.process.run` (cached 3s), the model id is converted to a display name, and effort is read from `effortLevel` in settings (live per-turn effort is only delivered to hook events that other plugins can pre-empt, so it is not relied on).
 
+## Install
+
+```
+/plugin install session-footer --marketplace 780Farva/claude-statusline
+```
+
+From a local clone: `claude plugin marketplace add <clone path>` then `claude plugin install session-footer@claude-statusline --scope user`.
+
 ## Install (development)
 
 Copy this folder to a mods folder Claude Code watches, e.g. `~/.claude/dev-mods/<anything>/session-footer/`, or run `claude --plugin-dir <this folder>`. Accept the "Turn on mods" prompt if asked. Remove the `statusLine` entry from `~/.claude/settings.json` if you do not want both.
