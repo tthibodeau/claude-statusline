@@ -1,0 +1,19 @@
+{
+  "name": "session-footer",
+  "version": "0.5.1",
+  "description": "Custom footer: dir, git status, model, effort, context and 5h limit.",
+  "userConfig": {
+    "rightMargin": {
+      "type": "string",
+      "title": "Right margin (columns)",
+      "description": "Columns reserved at the right edge of the footer row.",
+      "default": "3"
+    },
+    "columns": {
+      "type": "string",
+      "title": "Footer width override",
+      "description": "Terminal width in columns to lay the footer out in. 0 = detect.",
+      "default": "0"
+    }
+  }
+}
