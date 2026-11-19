@@ -1,6 +1,6 @@
 {
   "name": "claude-statusline",
-  "owner": { "name": "780Farva" },
+  "owner": { "name": "tthibodeau" },
   "plugins": [
     {
       "name": "session-footer",

@@ -7,7 +7,7 @@ It is a port of `rust-src/` using the mod API: git state comes from `git status 
 ## Install
 
 ```
-/plugin install session-footer --marketplace 780Farva/claude-statusline
+/plugin install session-footer --marketplace tthibodeau/claude-statusline
 ```
 
 From a local clone: `claude plugin marketplace add <clone path>` then `claude plugin install session-footer@claude-statusline --scope user`.
@@ -18,7 +18,7 @@ Copy this folder to a mods folder Claude Code watches, e.g. `~/.claude/dev-mods/
 
 ## Uninstall
 
-Delete the folder.
+`/plugin uninstall session-footer` for a marketplace install; for a development install, delete the folder.
 
 ## Settings (config menu)
 
