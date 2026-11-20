@@ -36,7 +36,7 @@ function noteEffort(memo: EffortMemo, $: Pick<EngineInterface, 'ui'>, e: EffortE
 }
 
 export const register: Register = (on, options) => {
-  const opts = parseOptions(options)
+  const footerOptions = parseOptions(options)
   const gitState = createGitState({ now: Date.now })
 
   const hookEffort: EffortMemo = { level: '' }
@@ -77,10 +77,10 @@ export const register: Register = (on, options) => {
     usage.push({ color: barColor(ctx, CYAN), text: `ctx ${bar5(ctx)} ${ctx}%` })
     if (five !== null) usage.push({ color: barColor(five, GREEN), text: `5h ${bar5(five)} ${five}%` })
 
-    const columns = opts.columns ?? e.viewport?.columns ?? 80
+    const columns = footerOptions.columns ?? e.viewport?.columns ?? 80
     const folderText = `${ICON_FOLDER} ${dir}`
     const { showModel, pad } = layoutFooter({
-      folderText, gitText: gp?.text ?? null, model, usage, columns, rightMargin: opts.rightMargin,
+      folderText, gitText: gp?.text ?? null, model, usage, columns, rightMargin: footerOptions.rightMargin,
     })
 
     const sep = <Text color={GRAY}> | </Text>
