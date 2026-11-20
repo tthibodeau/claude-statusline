@@ -28,7 +28,7 @@ Install it from inside Claude Code:
 
 Run `claude --plugin-dir <this folder>`. The mod reloads when a turn that edited it ends. If you still have a `statusLine` entry in `~/.claude/settings.json`, you'll see both rows.
 
-Run the tests with `claude plugin test <this folder>`. `hooks/footer-format.test.ts` covers the pure parsing and formatting in `hooks/footer-format.ts`; `hooks/register.test.tsx` mounts the footer against a fake engine and covers full branch names, the refresh after a tool call, keeping the branch when a git run is aborted, and the effort order.
+Run the tests with `claude plugin test <this folder>`. `hooks/footer-format.test.ts` covers the pure parsing, layout, option and effort rules in `hooks/footer-format.ts`. `hooks/git-state.test.ts` drives `hooks/git-state.ts` (the 3 s throttle, the queued forced refresh, keeping the last value on an abort) with a fake `$` and a fake clock. `hooks/register.test.tsx` mounts the footer against a fake engine and covers full branch names, the refresh after a tool call, keeping the branch when a git run is aborted, and the effort order.
 
 Check it with `claude plugin validate <this folder>` and type-check with `tsc -p <this folder>` once the engine has written `.claude-plugin/types/`.
 
