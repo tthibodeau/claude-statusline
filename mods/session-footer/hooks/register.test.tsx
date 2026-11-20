@@ -16,15 +16,21 @@ type Engine = { branch: string; fail: boolean; gitRuns: number }
 // Each hook here stands for the engine: it answers the mod's `$` calls.
 // `engine.branch` is what `git status` reports; `engine.fail` makes the run
 // throw, as an aborted `$.process.run` does.
-function fakeEngine(on: any, settings: Record<string, unknown> = {}): Engine {
+// `world.settingsFail` makes every settings read throw; `world.env` answers env.get.
+type World = { settings?: Record<string, unknown>; settingsFail?: boolean; env?: Record<string, string> }
+function fakeEngine(on: any, world: World = {}): Engine {
+  const { settings = {}, settingsFail = false, env = {} } = world
   const engine: Engine = { branch: 'main', fail: false, gitRuns: 0 }
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('session.cwd', () => ({ value: '/work/claude-statusline' }))
   on('session.usage', () => ({
     value: { startedAt: 0, context: { percent: 9 }, rateLimits: [{ kind: 'five_hour', percentUsed: 13 }] },
   }))
-  on('settings.read', () => ({ value: settings }))
-  on('env.get', () => ({ value: undefined }))
+  on('settings.read', () => {
+    if (settingsFail) throw new Error('settings unreadable')
+    return { value: settings }
+  })
+  on('env.get', (_: unknown, e: { name: string }) => ({ value: env[e.name] }))
   on('classic.Stop', () => ({}))
   on('classic.PostToolUse', () => ({}))
   on('process.run', (_: unknown, e: { argv: readonly string[] }) => {
@@ -44,10 +50,18 @@ const afterToolCall = ($: any) =>
 const branchText = async (ui: any) => (await ui.find({ type: 'Text', text: /\u{f126}/u }))?.text
 
 test('effort follows modelSettings for the current model over effortLevel', async ($, on) => {
-  fakeEngine(on, { effortLevel: 'xhigh', modelSettings: { 'claude-opus-5-5': { effortLevel: 'high' } } })
+  fakeEngine(on, { settings: { effortLevel: 'xhigh', modelSettings: { 'claude-opus-5-5': { effortLevel: 'high' } } } })
   const ui = await $.ui.mount(FOOTER)
 
   expect((await ui.find({ type: 'Text', text: /\u{f0e7}/u }))?.text).toBe('\u{f0e7} high')
+  await ui.unmount()
+})
+
+test('a failed settings read still shows the effort from CLAUDE_CODE_EFFORT_LEVEL', async ($, on) => {
+  fakeEngine(on, { settingsFail: true, env: { CLAUDE_CODE_EFFORT_LEVEL: 'medium' } })
+  const ui = await $.ui.mount(FOOTER)
+
+  expect((await ui.find({ type: 'Text', text: /\u{f0e7}/u }))?.text).toBe('\u{f0e7} medium')
   await ui.unmount()
 })
 

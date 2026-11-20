@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 import {
   BLUE, CYAN, GRAY, GREEN, MUTED, ICON_BOLT, ICON_FOLDER,
-  bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions,
+  bar5, barColor, effortColor, gitParts, layoutFooter, normalizeModel, parseGit, parseOptions, pickEffort,
   type Git, type Part,
 } from './footer-format'
 
@@ -47,6 +47,12 @@ async function refreshGit($: any, force = false) {
   }
 }
 
+// A settings or env read that fails (an aborted render, a denied read) counts
+// as "not set", so the next source in the effort order still applies.
+async function readOrUndefined<T>(read: () => Promise<T>): Promise<T | undefined> {
+  try { return await read() } catch { return undefined }
+}
+
 // Effort is only carried by hook events inside a turn; remember the latest.
 function noteEffort($: any, e: any) {
   const l = e?.effort?.level
@@ -66,19 +72,18 @@ export const register: Register = (on, options) => {
     const modelRaw: string = await $.session.model()
     const u = await $.session.usage()
     const dir = (await $.session.cwd()).split(/[\\/]/).filter(Boolean).pop() ?? '?'
-    let eff = effort
-    if (!eff) {
-      try {
-        const lvl = await $.settings.read({ key: 'effortLevel' })
-        if (typeof lvl === 'string') eff = lvl
-        const perModel = modelEffort(await $.settings.read({ key: 'modelSettings' }), modelRaw)
-        if (perModel) eff = perModel
-        const env = await $.env.get('CLAUDE_CODE_EFFORT_LEVEL')
-        if (env && env !== 'auto' && env !== 'unset') eff = env
-        const thinking = await $.settings.read({ key: 'alwaysThinkingEnabled' })
-        if (thinking === false) eff = 'off'
-      } catch {}
-    }
+    // The settings are read only when no hook event has carried a level. Each
+    // read stands alone: one that fails leaves its source unset, and the rest
+    // still count.
+    const [envLevel, modelSettings, effortLevel, alwaysThinkingEnabled] = effort
+      ? [undefined, undefined, undefined, undefined]
+      : await Promise.all([
+          readOrUndefined(() => $.env.get('CLAUDE_CODE_EFFORT_LEVEL')),
+          readOrUndefined(() => $.settings.read({ key: 'modelSettings' })),
+          readOrUndefined(() => $.settings.read({ key: 'effortLevel' })),
+          readOrUndefined(() => $.settings.read({ key: 'alwaysThinkingEnabled' })),
+        ])
+    const eff = pickEffort({ hookLevel: effort, envLevel, modelSettings, model: modelRaw, effortLevel, alwaysThinkingEnabled })
     const model = modelRaw ? normalizeModel(modelRaw) : ''
     const ctx = Math.floor(u.context.percent ?? 0)
     const fiveRaw = u.rateLimits.find((r: any) => r.kind === 'five_hour')

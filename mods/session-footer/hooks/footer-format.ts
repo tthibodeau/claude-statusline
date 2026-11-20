@@ -56,6 +56,34 @@ export function modelEffort(settings: unknown, modelRaw: string): string | undef
   return undefined
 }
 
+// Each source as it was read; undefined when it is not set or its read failed.
+export type EffortSources = {
+  /** The level the latest hook event carried, or '' when none has. */
+  hookLevel: string
+  /** CLAUDE_CODE_EFFORT_LEVEL. */
+  envLevel: string | undefined
+  /** The `modelSettings` setting. */
+  modelSettings: unknown
+  /** The session model, as an id or a display name. */
+  model: string
+  /** The `effortLevel` setting. */
+  effortLevel: unknown
+  /** The `alwaysThinkingEnabled` setting. */
+  alwaysThinkingEnabled: unknown
+}
+
+// Claude Code's order: the live hook value; else thinking turned off gives
+// 'off'; else CLAUDE_CODE_EFFORT_LEVEL (not 'auto' or 'unset'); else
+// modelSettings for the model; else effortLevel. '' when nothing is set.
+export function pickEffort(s: EffortSources): string {
+  if (s.hookLevel) return s.hookLevel
+  if (s.alwaysThinkingEnabled === false) return 'off'
+  if (s.envLevel && s.envLevel !== 'auto' && s.envLevel !== 'unset') return s.envLevel
+  const perModel = modelEffort(s.modelSettings, s.model)
+  if (perModel) return perModel
+  return typeof s.effortLevel === 'string' ? s.effortLevel : ''
+}
+
 export function parseGit(porcelain: string, stashOut: string): Git | null {
   const g: Git = { branch: '', ahead: 0, behind: 0, working: 0, staged: 0, untracked: 0, stash: 0 }
   let oid = ''

@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import {
   CORAL, GREEN, LTCYAN, RED, YELLOW, ICON_BRANCH, ICON_CLEAN, ICON_FOLDER,
-  bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions,
+  bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions, pickEffort,
+  type EffortSources,
   type Part,
 } from './footer-format'
 
@@ -145,4 +146,35 @@ test('layoutFooter never pads below 1 and lays out at least 20 columns', async (
   expect(narrow).toEqual({ showModel: false, pad: 1 })
   const tiny = layoutFooter({ folderText: 'x', gitText: null, model: '', usage: [{ color: GREEN, text: 'y' }], columns: 5, rightMargin: 3 })
   expect(tiny.pad).toBe(18)
+})
+
+const noEffort: EffortSources = {
+  hookLevel: '', envLevel: undefined, modelSettings: undefined, model: 'claude-opus-5-5',
+  effortLevel: undefined, alwaysThinkingEnabled: undefined,
+}
+const opusHigh = { 'claude-opus-5-5': { effortLevel: 'high' } }
+
+test('pickEffort follows the live hook value, then thinking off, env, modelSettings, effortLevel', async () => {
+  const pick = (s: Partial<EffortSources>) => pickEffort({ ...noEffort, ...s })
+  expect(pick({})).toBe('')
+  expect(pick({ effortLevel: 'low' })).toBe('low')
+  expect(pick({ effortLevel: 'low', modelSettings: opusHigh })).toBe('high')
+  expect(pick({ effortLevel: 'low', modelSettings: opusHigh, envLevel: 'medium' })).toBe('medium')
+  expect(pick({ effortLevel: 'low', envLevel: 'medium', alwaysThinkingEnabled: false })).toBe('off')
+  expect(pick({ envLevel: 'medium', alwaysThinkingEnabled: false, hookLevel: 'max' })).toBe('max')
+})
+
+test('pickEffort ignores env auto and unset, and settings that are not strings', async () => {
+  const pick = (s: Partial<EffortSources>) => pickEffort({ ...noEffort, ...s })
+  expect(pick({ envLevel: 'auto', effortLevel: 'low' })).toBe('low')
+  expect(pick({ envLevel: 'unset', effortLevel: 'low' })).toBe('low')
+  expect(pick({ envLevel: '', effortLevel: 'low' })).toBe('low')
+  expect(pick({ effortLevel: 3 })).toBe('')
+  expect(pick({ alwaysThinkingEnabled: true, effortLevel: 'low' })).toBe('low')
+})
+
+test('pickEffort uses the sources that were read when another read failed', async () => {
+  // A failed read reaches pickEffort as undefined.
+  expect(pickEffort({ ...noEffort, modelSettings: undefined, envLevel: 'xhigh' })).toBe('xhigh')
+  expect(pickEffort({ ...noEffort, envLevel: undefined, modelSettings: opusHigh })).toBe('high')
 })
