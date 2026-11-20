@@ -15,7 +15,7 @@ export type GitEngine = {
 }
 
 export type GitStateOptions = {
-  /** Milliseconds since the epoch. `Date.now` in production. */
+  /** The current time in milliseconds since the epoch; register.tsx passes `Date.now`. */
   now: () => number
   /** How long a read stays fresh for a refresh that is not forced. */
   ttlMs?: number

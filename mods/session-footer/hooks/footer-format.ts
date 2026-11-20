@@ -1,5 +1,5 @@
 // Pure parsing and formatting for the session-footer mod: no `$`, no I/O.
-// Kept apart from register.tsx so it can be tested with plain calls.
+// register.tsx gathers the inputs and draws what these functions return.
 
 // --- palette: same as the Rust statusline ---
 export const BLUE = '#3465a4', GREEN = '#4e9a06', YELLOW = '#c4a000', CORAL = '#f26d50'

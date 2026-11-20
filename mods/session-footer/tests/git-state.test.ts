@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import type { ProcessRunResult } from 'claude-code'
-import { createGitState, GIT_TTL_MS, refreshGit, type GitEngine } from './git-state'
+import { createGitState, GIT_TTL_MS, refreshGit, type GitEngine } from '../hooks/git-state'
 
 const porcelain = (branch: string) =>
   `# branch.oid 00aa75f0c2068fb2b22773d905f8df8458fb85a5\n# branch.head ${branch}\n`

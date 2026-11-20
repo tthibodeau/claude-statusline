@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { createEffortMemo, noteEffort, settingsRead, type EffortEngine } from './effort-memo'
+import { createEffortMemo, noteEffort, settingsRead, type EffortEngine } from '../hooks/effort-memo'
 
 // A fake `$` that counts redraws.
 function fakeUi() {

@@ -5,7 +5,7 @@ import {
   shortenMiddle,
   type EffortSources,
   type Part,
-} from './footer-format'
+} from '../hooks/footer-format'
 
 const status = (...lines: string[]) => lines.join('\n') + '\n'
 
