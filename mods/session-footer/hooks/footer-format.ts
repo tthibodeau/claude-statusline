@@ -78,6 +78,72 @@ export function parseGit(porcelain: string, stashOut: string): Git | null {
   return g
 }
 
+// --- plugin options (plugin.json userConfig) ---
+
+export const DEFAULT_RIGHT_MARGIN = 3
+
+export type FooterOptions = {
+  /** Columns kept free at the right edge of the row. */
+  rightMargin: number
+  /** Width to lay the row out in; null means use the measured width. */
+  columns: number | null
+}
+
+// Parsed once per register call. A rightMargin that is not a number falls back
+// to the documented default of 3; a negative one is 0. A columns of 0, below 0
+// or not a number means "detect".
+export function parseOptions(options: Readonly<Record<string, unknown>> | undefined): FooterOptions {
+  const margin = parseInt(String(options?.rightMargin ?? DEFAULT_RIGHT_MARGIN), 10)
+  const columns = Math.floor(Number(options?.columns) || 0)
+  return {
+    rightMargin: Number.isNaN(margin) ? DEFAULT_RIGHT_MARGIN : Math.max(0, margin),
+    columns: columns > 0 ? columns : null,
+  }
+}
+
+// --- row layout ---
+
+/** Width of the " | " and " · " separators. */
+export const SEPARATOR_WIDTH = 3
+/** The row is never laid out narrower than this. */
+export const MIN_ROW_WIDTH = 20
+/** The right group (model and usage) shows the model only within this share of the row. */
+export const RIGHT_GROUP_SHARE = 0.5
+
+export type FooterLayoutInput = {
+  /** The folder part on the left, as drawn. */
+  folderText: string
+  /** The git part on the left, or null when there is none. */
+  gitText: string | null
+  /** The short model name, or '' when unknown. */
+  model: string
+  /** The usage parts on the right (effort, ctx, 5h), drawn with separators. */
+  usage: readonly Part[]
+  columns: number
+  rightMargin: number
+}
+
+export type FooterLayout = {
+  /** Whether the model name fits in front of the usage group. */
+  showModel: boolean
+  /** Spaces between the left and right groups; at least 1. */
+  pad: number
+}
+
+// Widths count code points, not terminal cells.
+const textWidth = (s: string) => [...s].length
+
+export function layoutFooter(input: FooterLayoutInput): FooterLayout {
+  const rowWidth = Math.max(MIN_ROW_WIDTH, input.columns - input.rightMargin)
+  const usageWidth = input.usage.reduce((n, p) => n + textWidth(p.text), 0)
+    + SEPARATOR_WIDTH * Math.max(0, input.usage.length - 1)
+  const modelWidth = input.model ? textWidth(input.model) + SEPARATOR_WIDTH : 0
+  const showModel = input.model !== '' && usageWidth + modelWidth <= Math.floor(rowWidth * RIGHT_GROUP_SHARE)
+  const leftWidth = textWidth(input.folderText) + (input.gitText ? SEPARATOR_WIDTH + textWidth(input.gitText) : 0)
+  const rightWidth = (showModel ? modelWidth : 0) + usageWidth
+  return { showModel, pad: Math.max(1, rowWidth - leftWidth - rightWidth) }
+}
+
 export function gitParts(g: Git): Part {
   let dirty = ''
   if (g.working) dirty += ` ${ICON_MODIFIED} ${g.working}`

@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 import {
   BLUE, CYAN, GRAY, GREEN, MUTED, ICON_BOLT, ICON_FOLDER,
-  bar5, barColor, effortColor, gitParts, modelEffort, normalizeModel, parseGit,
+  bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions,
   type Git, type Part,
 } from './footer-format'
 
@@ -54,7 +54,7 @@ function noteEffort($: any, e: any) {
 }
 
 export const register: Register = (on, options) => {
-  const margin = Math.max(0, parseInt(String((options as Record<string, unknown>)?.rightMargin ?? '3'), 10) || 0)
+  const opts = parseOptions(options)
 
   on('classic.PostToolUse', async ($, e, next) => { noteEffort($, e); void refreshGit($, true); return next(e) })
   on('classic.Stop', async ($, e, next) => { noteEffort($, e); void refreshGit($, true); return next(e) })
@@ -85,7 +85,6 @@ export const register: Register = (on, options) => {
     const five = fiveRaw ? Math.floor(fiveRaw.percentUsed) : null
 
     // left: folder [ | git ]
-    const left: Part[] = [{ color: BLUE, text: `${ICON_FOLDER} ${dir}` }]
     const gp = git ? gitParts(git) : null
     // right: [model ·] [effort | ] ctx | 5h
     const usage: Part[] = []
@@ -93,14 +92,11 @@ export const register: Register = (on, options) => {
     usage.push({ color: barColor(ctx, CYAN), text: `ctx ${bar5(ctx)} ${ctx}%` })
     if (five !== null) usage.push({ color: barColor(five, GREEN), text: `5h ${bar5(five)} ${five}%` })
 
-    const override = Math.floor(Number((options as Record<string, unknown>)?.columns) || 0)
-    const cols: number = override > 0 ? override : (e as any).viewport?.columns ?? (e as any).props?.columns ?? 80
-    const budget = Math.max(20, cols - margin)
-    const w = (ps: Part[], sepW: number) => ps.reduce((n, p) => n + [...p.text].length, 0) + sepW * Math.max(0, ps.length - 1)
-    const usageW = w(usage, 3)
-    const modelW = model ? [...model].length + 3 : 0
-    const sideW = Math.floor(budget * 0.5)
-    const showModel = model !== '' && usageW + modelW <= sideW
+    const columns: number = opts.columns ?? (e as any).viewport?.columns ?? (e as any).props?.columns ?? 80
+    const folderText = `${ICON_FOLDER} ${dir}`
+    const { showModel, pad } = layoutFooter({
+      folderText, gitText: gp?.text ?? null, model, usage, columns, rightMargin: opts.rightMargin,
+    })
 
     const sep = <Text color={GRAY}> | </Text>
     const dot = <Text color={GRAY}> · </Text>
@@ -113,14 +109,10 @@ export const register: Register = (on, options) => {
       if (i > 0) rightNodes.push(sep)
       rightNodes.push(<Text key={`u${i}`} color={p.color}>{p.text}</Text>)
     })
-    const leftLen = [...`${ICON_FOLDER} ${dir}`].length + (gp ? 3 + [...gp.text].length : 0)
-    const rightLen = (showModel ? modelW : 0) + usageW
-    const pad = Math.max(1, budget - leftLen - rightLen)
-
     return (
       <Box flexDirection="column">
         <Box>
-          <Text color={BLUE}>{`${ICON_FOLDER} ${dir}`}</Text>
+          <Text color={BLUE}>{folderText}</Text>
           {gp ? sep : null}
           {gp ? <Text color={gp.color}>{gp.text}</Text> : null}
           <Text>{' '.repeat(pad)}</Text>

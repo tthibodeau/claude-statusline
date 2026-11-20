@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import {
-  CORAL, GREEN, LTCYAN, RED, YELLOW, ICON_BRANCH, ICON_CLEAN,
-  bar5, barColor, effortColor, gitParts, modelEffort, normalizeModel, parseGit,
+  CORAL, GREEN, LTCYAN, RED, YELLOW, ICON_BRANCH, ICON_CLEAN, ICON_FOLDER,
+  bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions,
+  type Part,
 } from './footer-format'
 
 const status = (...lines: string[]) => lines.join('\n') + '\n'
@@ -91,4 +92,57 @@ test('barColor warns at 50, 75 and 90 percent', async () => {
 
 test('effortColor gives xhigh the same color as high', async () => {
   expect(effortColor('xhigh')).toBe(effortColor('high'))
+})
+
+test('parseOptions falls back to a right margin of 3 when the value is not a number', async () => {
+  expect(parseOptions(undefined)).toEqual({ rightMargin: 3, columns: null })
+  expect(parseOptions({}).rightMargin).toBe(3)
+  expect(parseOptions({ rightMargin: 'abc' }).rightMargin).toBe(3)
+  expect(parseOptions({ rightMargin: '0' }).rightMargin).toBe(0)
+  expect(parseOptions({ rightMargin: '-2' }).rightMargin).toBe(0)
+  expect(parseOptions({ rightMargin: 5 }).rightMargin).toBe(5)
+})
+
+test('parseOptions reads columns 0, negative or not a number as detect', async () => {
+  expect(parseOptions({ columns: '0' }).columns).toBeNull()
+  expect(parseOptions({ columns: '-5' }).columns).toBeNull()
+  expect(parseOptions({ columns: 'wide' }).columns).toBeNull()
+  expect(parseOptions({ columns: '120' }).columns).toBe(120)
+  expect(parseOptions({ columns: '99.7' }).columns).toBe(99)
+})
+
+const usage: Part[] = [
+  { color: GREEN, text: 'ctx ◻◻◻◻◻ 9%' },
+  { color: GREEN, text: '5h ◻◻◻◻◻ 13%' },
+]
+const folderText = `${ICON_FOLDER} claude-statusline`
+
+test('layoutFooter hides the model when model plus usage is wider than half the row', async () => {
+  const at = (columns: number) => layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns, rightMargin: 3 })
+  expect(at(60).showModel).toBe(false)
+  expect(at(100).showModel).toBe(true)
+})
+
+test('layoutFooter shows the model when it fits half the row exactly', async () => {
+  const one: Part[] = [{ color: GREEN, text: 'u'.repeat(9) }]
+  const at = (model: string) => layoutFooter({ folderText, gitText: null, model, usage: one, columns: 43, rightMargin: 3 })
+  expect(at('m'.repeat(8)).showModel).toBe(true)
+  expect(at('m'.repeat(9)).showModel).toBe(false)
+  expect(at('').showModel).toBe(false)
+})
+
+test('layoutFooter pads the row out to the columns less the right margin', async () => {
+  // 97 columns: folder 19, model 8 + 3, usage 12 + 3 + 12
+  expect(layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(40)
+  // the git part adds its separator and text: 3 + 8
+  expect(layoutFooter({ folderText, gitText: `${ICON_BRANCH} main ${ICON_CLEAN}`, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(29)
+  // a wider margin takes the same columns off the pad
+  expect(layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 13 }).pad).toBe(30)
+})
+
+test('layoutFooter never pads below 1 and lays out at least 20 columns', async () => {
+  const narrow = layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 10, rightMargin: 3 })
+  expect(narrow).toEqual({ showModel: false, pad: 1 })
+  const tiny = layoutFooter({ folderText: 'x', gitText: null, model: '', usage: [{ color: GREEN, text: 'y' }], columns: 5, rightMargin: 3 })
+  expect(tiny.pad).toBe(18)
 })
