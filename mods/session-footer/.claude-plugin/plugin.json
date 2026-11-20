@@ -1,6 +1,6 @@
 {
   "name": "session-footer",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Custom footer: dir, git status, model, effort, context and 5h limit.",
   "userConfig": {
     "rightMargin": {

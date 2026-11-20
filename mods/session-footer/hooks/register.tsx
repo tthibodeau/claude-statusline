@@ -40,6 +40,21 @@ function normalizeModel(raw: string): string {
   return inner.endsWith(' context') ? `${head}-${inner.slice(0, -' context'.length)}` : head
 }
 
+// `modelSettings` is keyed by model id ("claude-opus-5-5"), and its effortLevel
+// overrides the global one. The session model may come back as an id (maybe
+// with "[1m]") or a display name ("Opus 5.5 (1M context)"), so compare both
+// sides by display name without the context suffix.
+function modelEffort(settings: unknown, modelRaw: string): string | undefined {
+  if (!settings || typeof settings !== 'object' || !modelRaw) return undefined
+  const base = (s: string) => normalizeModel(s).replace(/-\w+$/, '').toLowerCase()
+  const want = base(modelRaw)
+  for (const [key, v] of Object.entries(settings as Record<string, unknown>)) {
+    const lvl = (v as { effortLevel?: unknown } | null)?.effortLevel
+    if (typeof lvl === 'string' && base(key) === want) return lvl
+  }
+  return undefined
+}
+
 function parseGit(porcelain: string, stashOut: string): Git | null {
   const g: Git = { branch: '', ahead: 0, behind: 0, working: 0, staged: 0, untracked: 0, stash: 0 }
   let oid = ''
@@ -58,7 +73,6 @@ function parseGit(porcelain: string, stashOut: string): Git | null {
   }
   if (g.branch === '(detached)') g.branch = oid.slice(0, 7)
   if (!g.branch) return null
-  g.branch = g.branch.split('/').pop() ?? g.branch
   g.stash = stashOut.split('\n').filter(Boolean).length
   return g
 }
@@ -81,24 +95,42 @@ let effort = ''
 let git: Git | null = null
 let gitAt = 0
 let gitBusy = false
+let gitPending = false
 
-async function refreshGit($: any) {
-  if (gitBusy || Date.now() - gitAt < 3000) return
+// Git state is refreshed on events, not on a timer:
+// - after each tool call and at the end of a turn (force): Claude's own commits,
+//   checkouts and edits show up straight away;
+// - on each render (throttled to 3 s): changes made in another terminal show up
+//   as soon as the person types.
+// A forced refresh that arrives while a run is in flight is queued, not dropped.
+async function refreshGit($: any, force = false) {
+  if (gitBusy) { if (force) gitPending = true; return }
+  if (!force && Date.now() - gitAt < 3000) return
   gitBusy = true
-  let changed = false
+  let next: Git | null = git
+  let ok = false
   try {
     const st = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v2', '--branch'])
     const sl = await $.process.run(['git', '--no-optional-locks', 'stash', 'list'])
-    const next = st.exitCode === 0 ? parseGit(st.stdout, sl.exitCode === 0 ? sl.stdout : '') : null
-    changed = JSON.stringify(next) !== JSON.stringify(git)
-    git = next
+    next = st.exitCode === 0 ? parseGit(st.stdout, sl.exitCode === 0 ? sl.stdout : '') : null
+    ok = true
   } catch {
-    changed = git !== null
-    git = null
+    // A render's run is aborted by the next render (each keystroke). That says
+    // nothing about the repo: keep the last value and leave gitAt alone so the
+    // next refresh runs straight away.
   }
-  gitAt = Date.now()
   gitBusy = false
-  if (changed) $.ui.invalidate('ui.render')
+  if (ok) {
+    gitAt = Date.now()
+    if (JSON.stringify(next) !== JSON.stringify(git)) {
+      git = next
+      $.ui.invalidate('ui.render')
+    }
+  }
+  if (gitPending) {
+    gitPending = false
+    await refreshGit($, true)
+  }
 }
 
 // Effort is only carried by hook events inside a turn; remember the latest.
@@ -110,8 +142,8 @@ function noteEffort($: any, e: any) {
 export const register: Register = (on, options) => {
   const margin = Math.max(0, parseInt(String((options as Record<string, unknown>)?.rightMargin ?? '3'), 10) || 0)
 
-  on('classic.PostToolUse', async ($, e, next) => { noteEffort($, e); return next(e) })
-  on('classic.Stop', async ($, e, next) => { noteEffort($, e); return next(e) })
+  on('classic.PostToolUse', async ($, e, next) => { noteEffort($, e); void refreshGit($, true); return next(e) })
+  on('classic.Stop', async ($, e, next) => { noteEffort($, e); void refreshGit($, true); return next(e) })
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const { Box, Text } = $.ui.resolve(e)
@@ -125,6 +157,10 @@ export const register: Register = (on, options) => {
       try {
         const lvl = await $.settings.read({ key: 'effortLevel' })
         if (typeof lvl === 'string') eff = lvl
+        const perModel = modelEffort(await $.settings.read({ key: 'modelSettings' }), modelRaw)
+        if (perModel) eff = perModel
+        const env = await $.env.get('CLAUDE_CODE_EFFORT_LEVEL')
+        if (env && env !== 'auto' && env !== 'unset') eff = env
         const thinking = await $.settings.read({ key: 'alwaysThinkingEnabled' })
         if (thinking === false) eff = 'off'
       } catch {}
