@@ -16,7 +16,7 @@ Install it from inside Claude Code:
 
   A refresh that arrives while one is running is queued, not dropped. A refresh that gets aborted (each keystroke aborts the previous render's run) keeps the last value instead of blanking the branch.
 - **Branch names** are shown in full, slashes included (`feature/foo`).
-- **Effort** shows the live per-turn level when a hook event carries it. Otherwise it follows Claude Code's order: `CLAUDE_CODE_EFFORT_LEVEL` (unless `auto` or `unset`), then `modelSettings` for the current model, then `effortLevel`. `alwaysThinkingEnabled: false` shows `off`.
+- **Effort** shows the level the last turn ran at, from the `PostToolUse` and `Stop` events. Otherwise it follows Claude Code's order: `CLAUDE_CODE_EFFORT_LEVEL` (unless `auto` or `unset`), then `modelSettings` for the current model, then `effortLevel`. `alwaysThinkingEnabled: false` shows `off`. When you change effort (`/effort`, the `/model` picker), Claude Code saves it to settings and reads them again; the footer hears that read, drops the last turn's level and redraws with the new one straight away.
 - **Model** ids are shown as display names (`claude-opus-5-5` as `Opus 5.5`).
 
 ## Settings (config menu)
@@ -28,12 +28,12 @@ Install it from inside Claude Code:
 
 Run `claude --plugin-dir <this folder>`. The mod reloads when a turn that edited it ends. If you still have a `statusLine` entry in `~/.claude/settings.json`, you'll see both rows.
 
-Run the tests with `claude plugin test <this folder>`. `hooks/footer-format.test.ts` covers the pure parsing, layout, option and effort rules in `hooks/footer-format.ts`. `hooks/git-state.test.ts` drives `hooks/git-state.ts` (the 3 s throttle, the queued forced refresh, keeping the last value on an abort) with a fake `$` and a fake clock. `hooks/register.test.tsx` mounts the footer against a fake engine and covers full branch names, the refresh after a tool call, keeping the branch when a git run is aborted, and the effort order.
+Run the tests with `claude plugin test <this folder>`. `hooks/footer-format.test.ts` covers the pure parsing, layout, option and effort rules in `hooks/footer-format.ts`. `hooks/effort-memo.test.ts` covers remembering a turn's effort and forgetting it when the engine reads changed settings. `hooks/git-state.test.ts` drives `hooks/git-state.ts` (the 3 s throttle, the queued forced refresh, keeping the last value on an abort) with a fake `$` and a fake clock. `hooks/register.test.tsx` mounts the footer against a fake engine and covers full branch names, the refresh after a tool call, keeping the branch when a git run is aborted, and the effort order.
 
 Check it with `claude plugin validate <this folder>` and type-check with `tsc -p <this folder>` once the engine has written `.claude-plugin/types/`.
 
 ## Known limits
 
 - The row is padded with spaces to the measured width, so a resize redraws it, but exactness depends on the engine's width reporting (about 2 cells of gap remain).
-- Effort can lag a mid-session `/model` or `/effort` change until the next tool call.
+- An effort change that Claude Code does not save to settings (`--effort` at startup) shows at the next tool call or turn end.
 - A git change made in another terminal while you don't touch the session shows when you next type.

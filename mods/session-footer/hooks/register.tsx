@@ -1,9 +1,10 @@
-import type { EngineInterface, Register } from 'claude-code'
+import type { Register } from 'claude-code'
 import {
   BLUE, CYAN, GRAY, GREEN, MUTED, ICON_BOLT, ICON_FOLDER,
   bar5, barColor, effortColor, gitParts, layoutFooter, normalizeModel, parseOptions, pickEffort,
   type Part,
 } from './footer-format'
+import { createEffortMemo, noteEffort, settingsRead } from './effort-memo'
 import { createGitState, refreshGit } from './git-state'
 
 // Git state is refreshed on events, not on a timer:
@@ -20,29 +21,21 @@ async function readOrUndefined<T>(read: () => Promise<T>): Promise<T | undefined
   try { return await read() } catch { return undefined }
 }
 
-/** What a classic hook event says about effort. */
-type EffortEvent = { effort?: { level?: unknown } }
-
-/** The latest effort level a hook event carried; one per register call. */
-type EffortMemo = { level: string }
-
-// Effort is only carried by hook events inside a turn; remember the latest.
-function noteEffort(memo: EffortMemo, $: Pick<EngineInterface, 'ui'>, e: EffortEvent) {
-  const level = e.effort?.level
-  if (typeof level === 'string' && level !== memo.level) {
-    memo.level = level
-    $.ui.invalidate('ui.render')
-  }
-}
-
 export const register: Register = (on, options) => {
   const footerOptions = parseOptions(options)
   const gitState = createGitState({ now: Date.now })
 
-  const hookEffort: EffortMemo = { level: '' }
+  const hookEffort = createEffortMemo()
 
   on('classic.PostToolUse', async ($, e, next) => { noteEffort(hookEffort, $, e); void refreshGit(gitState, $, true); return next(e) })
   on('classic.Stop', async ($, e, next) => { noteEffort(hookEffort, $, e); void refreshGit(gitState, $, true); return next(e) })
+
+  // An effort change saved to settings shows at once (see settingsRead).
+  on('settings.read', async ($, e, next) => {
+    const settings = await next(e)
+    settingsRead(hookEffort, $, next.origin)
+    return settings
+  })
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const { Box, Text } = $.ui.resolve(e)

@@ -57,6 +57,21 @@ test('effort follows modelSettings for the current model over effortLevel', asyn
   await ui.unmount()
 })
 
+const effortText = async (ui: any) => (await ui.find({ type: 'Text', text: /\u{f0e7}/u }))?.text
+
+// The forgetting on a settings change is covered in effort-memo.test.ts: the
+// test kit's engine `$` has no settings noun to raise the engine's own read.
+test('the effort a turn ran at shows over the saved setting', async ($, on) => {
+  fakeEngine(on, { settings: { modelSettings: { 'claude-opus-5-5': { effortLevel: 'high' } } } })
+  const ui = await $.ui.mount(FOOTER)
+  expect(await effortText(ui)).toBe('\u{f0e7} high')
+
+  await $.classic.Stop({ stop_hook_active: false, effort: { level: 'max' } })
+
+  expect(await effortText(ui)).toBe('\u{f0e7} max')
+  await ui.unmount()
+})
+
 test('a failed settings read still shows the effort from CLAUDE_CODE_EFFORT_LEVEL', async ($, on) => {
   fakeEngine(on, { settingsFail: true, env: { CLAUDE_CODE_EFFORT_LEVEL: 'medium' } })
   const ui = await $.ui.mount(FOOTER)
