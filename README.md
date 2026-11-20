@@ -4,6 +4,10 @@ A fast, native statusline for [Claude Code](https://claude.com/claude-code), wri
 
 ![claude-statusline example](assets/statusline.png)
 
+## Also: a mod version
+
+`mods/session-footer/` is an experimental port of this statusline as a Claude Code mod that draws in the hint row instead of the `statusLine` slot. See its README.
+
 ## Install
 
 **Windows** (PowerShell):
