@@ -11,16 +11,17 @@ const FOOTER = {
 const porcelain = (branch: string) =>
   `# branch.oid 00aa75f0c2068fb2b22773d905f8df8458fb85a5\n# branch.head ${branch}\n`
 
-type Engine = { branch: string; fail: boolean; gitRuns: number }
+type Engine = { branch: string; fail: boolean; gitRuns: number; statusLines: string[]; stash: string }
 
 // Each hook here stands for the engine: it answers the mod's `$` calls.
-// `engine.branch` is what `git status` reports; `engine.fail` makes the run
-// throw, as an aborted `$.process.run` does.
+// `engine.branch` is what `git status` reports, `engine.statusLines` any more
+// porcelain lines and `engine.stash` what `git stash list` prints;
+// `engine.fail` makes the run throw, as an aborted `$.process.run` does.
 // `world.settingsFail` makes every settings read throw; `world.env` answers env.get.
 type World = { settings?: Record<string, unknown>; settingsFail?: boolean; env?: Record<string, string> }
 function fakeEngine(on: any, world: World = {}): Engine {
   const { settings = {}, settingsFail = false, env = {} } = world
-  const engine: Engine = { branch: 'main', fail: false, gitRuns: 0 }
+  const engine: Engine = { branch: 'main', fail: false, gitRuns: 0, statusLines: [], stash: '' }
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('session.cwd', () => ({ value: '/work/claude-statusline' }))
   on('session.usage', () => ({
@@ -34,10 +35,11 @@ function fakeEngine(on: any, world: World = {}): Engine {
   on('classic.Stop', () => ({}))
   on('classic.PostToolUse', () => ({}))
   on('process.run', (_: unknown, e: { argv: readonly string[] }) => {
-    if (e.argv.includes('stash')) return { value: { exitCode: 0, stdout: '', stderr: '' } }
+    if (e.argv.includes('stash')) return { value: { exitCode: 0, stdout: engine.stash, stderr: '' } }
     engine.gitRuns++
     if (engine.fail) throw new Error('aborted')
-    return { value: { exitCode: 0, stdout: porcelain(engine.branch), stderr: '' } }
+    const stdout = porcelain(engine.branch) + engine.statusLines.map((l) => l + '\n').join('')
+    return { value: { exitCode: 0, stdout, stderr: '' } }
   })
   return engine
 }
@@ -77,6 +79,32 @@ test('a failed settings read still shows the effort from CLAUDE_CODE_EFFORT_LEVE
   const ui = await $.ui.mount(FOOTER)
 
   expect((await ui.find({ type: 'Text', text: /\u{f0e7}/u }))?.text).toBe('\u{f0e7} medium')
+  await ui.unmount()
+})
+
+// The icons are Nerd Font private-use characters: they draw as blanks outside a
+// Nerd Font, so a lost one is easy to miss by eye. Pin the exact code points.
+test('the footer draws its Nerd Font icons', { options: { columns: '160' } }, async ($, on) => {
+  const engine = fakeEngine(on, { settings: { effortLevel: 'xhigh' } })
+  engine.branch = 'pr-1'
+  engine.statusLines = ['# branch.ab +1 -0', '1 .M N... 1 1 1 a b f.ts', '1 M. N... 1 1 1 a b g.ts']
+  engine.stash = 'stash@{0}: WIP\n'
+  const ui = await $.ui.mount(FOOTER)
+  await endTurn($)
+
+  const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text)
+  expect(texts).toContain('\u{f07c} claude-statusline')
+  expect(texts).toContain('\u{f126} pr-1 \u{21e1}1 \u{f044} 1 \u{f046} 1 \u{eb4b} 1')
+  expect(texts).toContain('\u{f0e7} xhigh')
+  await ui.unmount()
+})
+
+test('a clean branch is drawn with the branch icon and a check mark', { options: { columns: '160' } }, async ($, on) => {
+  fakeEngine(on)
+  const ui = await $.ui.mount(FOOTER)
+  await endTurn($)
+
+  expect(await branchText(ui)).toBe('\u{f126} main \u{2714}')
   await ui.unmount()
 })
 
