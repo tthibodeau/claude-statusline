@@ -15,7 +15,7 @@ Install it from inside Claude Code:
   - on each render of the footer, at most every 3 seconds, so changes made in another terminal show as soon as you type.
 
   A refresh that arrives while one is running is queued, not dropped. A refresh that gets aborted (each keystroke aborts the previous render's run) keeps the last value instead of blanking the branch.
-- **Branch names** are shown in full, slashes included (`feature/foo`).
+- **Branch names** are shown in full, slashes included (`feature/foo`). When the row is too narrow, the model name is hidden first; if the branch name still doesn't fit, it's shortened in the middle with `…` (`feature/ABC-1234-sess…ter-git-state-refresh`), never below 12 characters, so the row stays on one line.
 - **Effort** shows the level the last turn ran at, from the `PostToolUse` and `Stop` events. Otherwise it follows Claude Code's order: `CLAUDE_CODE_EFFORT_LEVEL` (unless `auto` or `unset`), then `modelSettings` for the current model, then `effortLevel`. `alwaysThinkingEnabled: false` shows `off`. When you change effort (`/effort`, the `/model` picker), Claude Code saves it to settings and reads them again; the footer hears that read, drops the last turn's level and redraws with the new one straight away.
 - **Model** ids are shown as display names (`claude-opus-5-5` as `Opus 5.5`).
 

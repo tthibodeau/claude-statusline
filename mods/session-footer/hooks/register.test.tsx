@@ -80,13 +80,26 @@ test('a failed settings read still shows the effort from CLAUDE_CODE_EFFORT_LEVE
   await ui.unmount()
 })
 
-test('a branch name with a slash is shown in full', async ($, on) => {
+test('a branch name with a slash is shown in full', { options: { columns: '120' } }, async ($, on) => {
   const engine = fakeEngine(on)
   engine.branch = 'feature/footer-fix'
   const ui = await $.ui.mount(FOOTER)
   await endTurn($)
 
   expect(await branchText(ui)).toContain('feature/footer-fix')
+  await ui.unmount()
+})
+
+test('a branch name too long for the row is shortened in the middle', { options: { columns: '100' } }, async ($, on) => {
+  const engine = fakeEngine(on)
+  engine.branch = 'feature/ABC-1234-session-footer-git-state-refresh'
+  const ui = await $.ui.mount(FOOTER)
+  await endTurn($)
+
+  const text = await branchText(ui)
+  expect(text?.startsWith('\u{f126} feature/ABC-1234-')).toBe(true)
+  expect(text).toContain('…')
+  expect(text?.endsWith('state-refresh \u{2714}')).toBe(true)
   await ui.unmount()
 })
 

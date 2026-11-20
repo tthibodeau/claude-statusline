@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 import {
   BLUE, CYAN, GRAY, GREEN, MUTED, ICON_BOLT, ICON_FOLDER,
-  bar5, barColor, effortColor, gitParts, layoutFooter, normalizeModel, parseOptions, pickEffort,
+  bar5, barColor, effortColor, layoutFooter, normalizeModel, parseOptions, pickEffort,
   type Part,
 } from './footer-format'
 import { createEffortMemo, noteEffort, settingsRead } from './effort-memo'
@@ -61,9 +61,6 @@ export const register: Register = (on, options) => {
     const fiveRaw = u.rateLimits.find((r) => r.kind === 'five_hour')
     const five = fiveRaw ? Math.floor(fiveRaw.percentUsed) : null
 
-    // left: folder [ | git ]
-    const git = gitState.current()
-    const gp = git ? gitParts(git) : null
     // right: [model ·] [effort | ] ctx | 5h
     const usage: Part[] = []
     if (eff) usage.push({ color: effortColor(eff), text: `${ICON_BOLT} ${eff}` })
@@ -72,8 +69,9 @@ export const register: Register = (on, options) => {
 
     const columns = footerOptions.columns ?? e.viewport?.columns ?? 80
     const folderText = `${ICON_FOLDER} ${dir}`
-    const { showModel, pad } = layoutFooter({
-      folderText, gitText: gp?.text ?? null, model, usage, columns, rightMargin: footerOptions.rightMargin,
+    // left: folder [ | git ], the branch name shortened when the row is too narrow
+    const { showModel, pad, gitPart: gp } = layoutFooter({
+      folderText, git: gitState.current(), model, usage, columns, rightMargin: footerOptions.rightMargin,
     })
 
     const sep = <Text color={GRAY}> | </Text>

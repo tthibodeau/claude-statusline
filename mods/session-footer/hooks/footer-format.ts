@@ -137,12 +137,14 @@ export const SEPARATOR_WIDTH = 3
 export const MIN_ROW_WIDTH = 20
 /** The right group (model and usage) shows the model only within this share of the row. */
 export const RIGHT_GROUP_SHARE = 0.5
+/** A branch name too long for the row is shortened, but never below this. */
+export const MIN_BRANCH_WIDTH = 12
 
 export type FooterLayoutInput = {
   /** The folder part on the left, as drawn. */
   folderText: string
-  /** The git part on the left, or null when there is none. */
-  gitText: string | null
+  /** The git state for the left group, or null when there is none. */
+  git: Git | null
   /** The short model name, or '' when unknown. */
   model: string
   /** The usage parts on the right (effort, ctx, 5h), drawn with separators. */
@@ -156,23 +158,60 @@ export type FooterLayout = {
   showModel: boolean
   /** Spaces between the left and right groups; at least 1. */
   pad: number
+  /** The git part as it fits the row (branch name shortened if needed), or null. */
+  gitPart: Part | null
 }
 
 // Widths count code points, not terminal cells.
 const textWidth = (s: string) => [...s].length
+
+/**
+ * Shortens `s` to `max` code points by replacing its middle with `…`, so both
+ * the start (`feature/ABC-1234`) and the end stay readable. A string that
+ * already fits is returned whole.
+ */
+export function shortenMiddle(s: string, max: number): string {
+  const chars = [...s]
+  if (chars.length <= max) return s
+  if (max <= 1) return '…'
+  const keep = max - 1
+  const head = Math.ceil(keep / 2)
+  return chars.slice(0, head).join('') + '…' + chars.slice(chars.length - (keep - head)).join('')
+}
 
 export function layoutFooter(input: FooterLayoutInput): FooterLayout {
   const rowWidth = Math.max(MIN_ROW_WIDTH, input.columns - input.rightMargin)
   const usageWidth = input.usage.reduce((n, p) => n + textWidth(p.text), 0)
     + SEPARATOR_WIDTH * Math.max(0, input.usage.length - 1)
   const modelWidth = input.model ? textWidth(input.model) + SEPARATOR_WIDTH : 0
-  const showModel = input.model !== '' && usageWidth + modelWidth <= Math.floor(rowWidth * RIGHT_GROUP_SHARE)
-  const leftWidth = textWidth(input.folderText) + (input.gitText ? SEPARATOR_WIDTH + textWidth(input.gitText) : 0)
+  const leftWidthWith = (gitPart: Part | null) =>
+    textWidth(input.folderText) + (gitPart ? SEPARATOR_WIDTH + textWidth(gitPart.text) : 0)
+  // Room the row needs past its width, with at least one space between the groups.
+  const overflowWith = (gitPart: Part | null, rightWidth: number) =>
+    leftWidthWith(gitPart) + 1 + rightWidth - rowWidth
+
+  let gitPart = input.git ? gitParts(input.git) : null
+
+  // The model shows only while model and usage fit their share of the row, and
+  // goes first when the row is too wide: the branch matters more.
+  let showModel = input.model !== '' && usageWidth + modelWidth <= Math.floor(rowWidth * RIGHT_GROUP_SHARE)
+  if (showModel && overflowWith(gitPart, modelWidth + usageWidth) > 0) showModel = false
   const rightWidth = (showModel ? modelWidth : 0) + usageWidth
-  return { showModel, pad: Math.max(1, rowWidth - leftWidth - rightWidth) }
+
+  // Then the branch name: in full when the row has room, otherwise shortened in
+  // the middle to fit, but not below MIN_BRANCH_WIDTH.
+  const overflow = overflowWith(gitPart, rightWidth)
+  if (input.git && overflow > 0) {
+    const branchWidth = textWidth(input.git.branch)
+    const fitWidth = Math.max(MIN_BRANCH_WIDTH, branchWidth - overflow)
+    if (fitWidth < branchWidth) gitPart = gitParts(input.git, shortenMiddle(input.git.branch, fitWidth))
+  }
+
+  return { showModel, pad: Math.max(1, rowWidth - leftWidthWith(gitPart) - rightWidth), gitPart }
 }
 
-export function gitParts(g: Git): Part {
+/** The git part of the row; `branch` is the name to draw, `g.branch` by default. */
+export function gitParts(g: Git, branch: string = g.branch): Part {
   let dirty = ''
   if (g.working) dirty += ` ${ICON_MODIFIED} ${g.working}`
   if (g.staged) dirty += ` ${ICON_STAGED} ${g.staged}`
@@ -183,5 +222,5 @@ export function gitParts(g: Git): Part {
   if (g.behind) remote += ` ${ICON_BEHIND}${g.behind}`
   const color = g.ahead && g.behind ? CORAL : dirty ? YELLOW : g.ahead ? LTCYAN : GREEN
   const clean = !dirty && !remote ? ` ${ICON_CLEAN}` : ''
-  return { color, text: `${ICON_BRANCH} ${g.branch}${remote}${dirty}${clean}` }
+  return { color, text: `${ICON_BRANCH} ${branch}${remote}${dirty}${clean}` }
 }

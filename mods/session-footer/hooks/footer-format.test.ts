@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import {
-  CORAL, GREEN, LTCYAN, RED, YELLOW, ICON_BRANCH, ICON_CLEAN, ICON_FOLDER,
+  CORAL, GREEN, LTCYAN, RED, YELLOW, ICON_AHEAD, ICON_BRANCH, ICON_CLEAN, ICON_FOLDER, ICON_MODIFIED, MIN_BRANCH_WIDTH,
   bar5, barColor, effortColor, gitParts, layoutFooter, modelEffort, normalizeModel, parseGit, parseOptions, pickEffort,
+  shortenMiddle,
   type EffortSources,
   type Part,
 } from './footer-format'
@@ -117,16 +118,18 @@ const usage: Part[] = [
   { color: GREEN, text: '5h ◻◻◻◻◻ 13%' },
 ]
 const folderText = `${ICON_FOLDER} claude-statusline`
+const cleanGit = (branch: string) => ({ branch, ahead: 0, behind: 0, working: 0, staged: 0, untracked: 0, stash: 0 })
+const LONG = 'feature/ABC-1234-session-footer-git-state-refresh'
 
 test('layoutFooter hides the model when model plus usage is wider than half the row', async () => {
-  const at = (columns: number) => layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns, rightMargin: 3 })
+  const at = (columns: number) => layoutFooter({ folderText, git: null, model: 'Opus 5.5', usage, columns, rightMargin: 3 })
   expect(at(60).showModel).toBe(false)
   expect(at(100).showModel).toBe(true)
 })
 
 test('layoutFooter shows the model when it fits half the row exactly', async () => {
   const one: Part[] = [{ color: GREEN, text: 'u'.repeat(9) }]
-  const at = (model: string) => layoutFooter({ folderText, gitText: null, model, usage: one, columns: 43, rightMargin: 3 })
+  const at = (model: string) => layoutFooter({ folderText, git: null, model, usage: one, columns: 43, rightMargin: 3 })
   expect(at('m'.repeat(8)).showModel).toBe(true)
   expect(at('m'.repeat(9)).showModel).toBe(false)
   expect(at('').showModel).toBe(false)
@@ -134,18 +137,62 @@ test('layoutFooter shows the model when it fits half the row exactly', async () 
 
 test('layoutFooter pads the row out to the columns less the right margin', async () => {
   // 97 columns: folder 19, model 8 + 3, usage 12 + 3 + 12
-  expect(layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(40)
+  expect(layoutFooter({ folderText, git: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(40)
   // the git part adds its separator and text: 3 + 8
-  expect(layoutFooter({ folderText, gitText: `${ICON_BRANCH} main ${ICON_CLEAN}`, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(29)
+  expect(layoutFooter({ folderText, git: cleanGit('main'), model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 }).pad).toBe(29)
   // a wider margin takes the same columns off the pad
-  expect(layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 13 }).pad).toBe(30)
+  expect(layoutFooter({ folderText, git: null, model: 'Opus 5.5', usage, columns: 100, rightMargin: 13 }).pad).toBe(30)
 })
 
 test('layoutFooter never pads below 1 and lays out at least 20 columns', async () => {
-  const narrow = layoutFooter({ folderText, gitText: null, model: 'Opus 5.5', usage, columns: 10, rightMargin: 3 })
-  expect(narrow).toEqual({ showModel: false, pad: 1 })
-  const tiny = layoutFooter({ folderText: 'x', gitText: null, model: '', usage: [{ color: GREEN, text: 'y' }], columns: 5, rightMargin: 3 })
+  const narrow = layoutFooter({ folderText, git: null, model: 'Opus 5.5', usage, columns: 10, rightMargin: 3 })
+  expect(narrow).toEqual({ showModel: false, pad: 1, gitPart: null })
+  const tiny = layoutFooter({ folderText: 'x', git: null, model: '', usage: [{ color: GREEN, text: 'y' }], columns: 5, rightMargin: 3 })
   expect(tiny.pad).toBe(18)
+})
+
+test('shortenMiddle keeps a name that fits and cuts the middle of one that does not', async () => {
+  expect(shortenMiddle('feature/footer-fix', 30)).toBe('feature/footer-fix')
+  expect(shortenMiddle('feature/footer-fix', 18)).toBe('feature/footer-fix')
+  expect(shortenMiddle(LONG, 20)).toBe('feature/AB…e-refresh')
+  expect([...shortenMiddle(LONG, 20)]).toHaveLength(20)
+  expect(shortenMiddle(LONG, 1)).toBe('…')
+})
+
+test('layoutFooter shows a branch name that fits in full, with the model', async () => {
+  const layout = layoutFooter({ folderText, git: cleanGit('feature/footer-fix'), model: 'Opus 5.5', usage, columns: 110, rightMargin: 3 })
+  expect(layout.gitPart?.text).toBe(`${ICON_BRANCH} feature/footer-fix ${ICON_CLEAN}`)
+  expect(layout.showModel).toBe(true)
+})
+
+test('layoutFooter hides the model before it shortens the branch name', async () => {
+  // 107 columns: folder 19 + 3, git part 53 (branch 49), model 8 + 3, usage 27: 7 over with the model
+  const layout = layoutFooter({ folderText, git: cleanGit(LONG), model: 'Opus 5.5', usage, columns: 110, rightMargin: 3 })
+  expect(layout.showModel).toBe(false)
+  expect(layout.gitPart?.text).toBe(`${ICON_BRANCH} ${LONG} ${ICON_CLEAN}`)
+  expect(layout.pad).toBe(5)
+})
+
+test('layoutFooter shortens a branch name still too long so the row fits exactly', async () => {
+  // 97 columns: folder 19 + 3, git part 53, usage 27: 6 over even without the model
+  const layout = layoutFooter({ folderText, git: cleanGit(LONG), model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 })
+  expect(layout.showModel).toBe(false)
+  expect(layout.gitPart?.text).toBe(`${ICON_BRANCH} feature/ABC-1234-sess…ter-git-state-refresh ${ICON_CLEAN}`)
+  expect(layout.pad).toBe(1)
+})
+
+test('layoutFooter shortens only the branch name and keeps the status marks whole', async () => {
+  const git = { ...cleanGit(LONG), ahead: 1, working: 2 }
+  const layout = layoutFooter({ folderText, git, model: 'Opus 5.5', usage, columns: 100, rightMargin: 3 })
+  expect(layout.gitPart?.text).toContain('…')
+  expect(layout.gitPart?.text.endsWith(` ${ICON_AHEAD}1 ${ICON_MODIFIED} 2`)).toBe(true)
+  expect(layout.pad).toBe(1)
+})
+
+test('layoutFooter never shortens a branch name below MIN_BRANCH_WIDTH', async () => {
+  const layout = layoutFooter({ folderText, git: cleanGit(LONG), model: 'Opus 5.5', usage, columns: 40, rightMargin: 3 })
+  expect(layout.gitPart?.text).toBe(`${ICON_BRANCH} featur…fresh ${ICON_CLEAN}`)
+  expect([...'featur…fresh']).toHaveLength(MIN_BRANCH_WIDTH)
 })
 
 const noEffort: EffortSources = {
